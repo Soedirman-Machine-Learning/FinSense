@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+tensorflow
+librosa
+numpy
+pandas
+scikit-learn
+holidays
+python-multipart
+soundfile

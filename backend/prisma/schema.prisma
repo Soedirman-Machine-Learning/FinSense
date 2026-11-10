@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+// ==================== ENUMS (yang tersisa) ====================
+enum TransactionType {
+  income
+  expense
+}
+
+enum SourceEnum {
+  manual
+  voice
+  ai
+}
+
+enum DebtStatus {
+  pending
+  partial
+  paid
+  overdue
+}
+
+enum StockLogType {
+  in
+  out
+  adjust
+}
+
+enum StockLogStatus {
+  completed
+  pending_audit
+}
+
+// ==================== AUTH & UMKM ====================
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  full_name     String
+  is_verified   Boolean   @default(false)
+  reset_token         String?  @unique   // token untuk reset password, unique
+  reset_token_expiry  DateTime?          // waktu kadaluarsa token
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+
+  umkm_profile         UmkmProfile?
+  transactions         Transaction[]
+  chat_sessions        AiChatSession[]
+  products             Product[]
+  stockLogs            StockLog[]
+  debts                Debt[]
+  refreshTokens        RefreshToken[]
+
+  @@index([email])
+  @@index([created_at])
+}
+
+model UmkmProfile {
+  id                  String   @id @default(uuid())
+  user_id             String   @unique
+  business_name       String
+  business_type       String?
+  province            String?
+  city                String?
+  monthly_revenue_est Float?
+  employee_count      Int?
+  onboarding_done     Boolean  @default(false)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user_id   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revoked   Boolean  @default(false)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ==================== TRANSAKSI & KATEGORI ====================
+model TransactionCategory {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  coicop_code String?         @unique
+  type        TransactionType
+  parent_id   Int?
+  icon        String?
+  color_hex   String?
+  is_default  Boolean         @default(false)
+
+  parent   TransactionCategory? @relation("CategorySubcategory", fields: [parent_id], references: [id])
+  children TransactionCategory[] @relation("CategorySubcategory")
+
+  transactions        Transaction[]
+  transaction_items   TransactionItem[]
+  // MonthlyBudget sudah dihapus
+
+  @@index([type])
+  @@index([parent_id])
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  user_id          String
+  category_id      Int
+  type             TransactionType
+  amount           Float
+  description      String?
+  transaction_date DateTime        @default(now())
+  source           SourceEnum
+  is_anomaly       Boolean         @default(false)
+  created_at       DateTime        @default(now())
+
+  user     User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  category TransactionCategory @relation(fields: [category_id], references: [id])
+
+  items   TransactionItem[]
+  // anomaly AnomalyDetection? -> dihapus
+
+  @@index([user_id])
+  @@index([category_id])
+  @@index([transaction_date])
+  @@index([type])
+  @@index([source])
+  @@index([is_anomaly])
+}
+
+model TransactionItem {
+  id             String   @id @default(uuid())
+  transaction_id String
+  item_name      String
+  quantity       Float
+  unit           String?
+  unit_price     Float
+  total_price    Float    @default(0)
+  category_id    Int?
+  ai_confidence  Float?
+  product_id     String?
+
+  transaction Transaction         @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  category    TransactionCategory? @relation(fields: [category_id], references: [id])
+  product     Product?            @relation(fields: [product_id], references: [id])
+
+  @@index([transaction_id])
+  @@index([category_id])
+  @@index([product_id])
+}
+
+// ==================== STOK & PRODUK ====================
+model Product {
+  id          String   @id @default(uuid())
+  user_id     String
+  name        String
+  sku         String?  @unique
+  stock       Int      @default(0)
+  unit        String?
+  price       Float?
+  min_stock   Int      @default(10)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user              User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transaction_items TransactionItem[]
+  stock_logs        StockLog[]
+
+  @@index([user_id])
+  @@index([sku])
+  @@index([name])
+}
+
+model StockLog {
+  id         String         @id @default(uuid())
+  product_id String
+  user_id    String
+  type       StockLogType
+  quantity   Int            // positif untuk in, negatif untuk out
+  note       String?
+  operator   String
+  status     StockLogStatus @default(completed)
+  created_at DateTime       @default(now())
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@index([type])
+  @@index([status])
+}
+
+// ==================== HUTANG PIUTANG ====================
+model Debt {
+  id            String     @id @default(uuid())
+  user_id       String
+  customer_name String
+  total_debt    Float
+  paid_amount   Float      @default(0)
+  due_date      DateTime
+  status        DebtStatus @default(pending)
+  note          String?
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  user     User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  payments  DebtPayment[]
+
+  @@index([user_id])
+  @@index([status])
+  @@index([due_date])
+}
+
+model DebtPayment {
+  id        String   @id @default(uuid())
+  debt_id   String
+  amount    Float
+  paid_at   DateTime @default(now())
+  note      String?
+
+  debt Debt @relation(fields: [debt_id], references: [id], onDelete: Cascade)
+
+  @@index([debt_id])
+  @@index([paid_at])
+}
+
+// ==================== AI CHAT (tanpa model prediksi) ====================
+model AiChatSession {
+  id              String   @id @default(uuid())
+  user_id         String
+  session_title   String?
+  context_summary String?
+  message_count   Int      @default(0)
+  created_at      DateTime @default(now())
+  last_active_at  DateTime @default(now())
+
+  user     User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages AiMessage[]
+
+  @@index([user_id])
+  @@index([last_active_at])
+}
+
+model AiMessage {
+  id          String   @id @default(uuid())
+  session_id  String
+  role        String   // 'user' atau 'assistant'
+  content     String
+  token_used  Int?
+  model_used  String?
+  created_at  DateTime @default(now())
+
+  session AiChatSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id])
+  @@index([created_at])
+  @@index([role])
+}

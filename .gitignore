@@ -1,0 +1,30 @@
+# ── Sistem operasi & editor ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── Dependensi ───────────────────────────────────────────────────
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# ── Hasil build & log ────────────────────────────────────────────
+dist/
+build/
+coverage/
+*.log
+
+# ── Rahasia & konfigurasi lingkungan (jangan pernah di-commit) ───
+# Contoh konfigurasi tetap ikut: backend/.env.example, frontend/.env.example
+.env*
+!.env.example
+.vercel/
+
+# ── Korpus & data uji hasil generate (bisa dibuat ulang dari skrip) ──
+ai-service/eval_data/
+data-science/data/processed/

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.DS_Store
+*.log
+*.cache
+coverage/
+.idea/
+.vscode/
+.vercel
+
+# Semua berkas .env berisi rahasia; hanya contoh konfigurasinya yang ikut.
+.env
+.env*
+!.env.example

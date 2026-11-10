@@ -1,0 +1,10 @@
+# Berkas .env berisi password database dan rahasia lain, jadi tidak boleh ikut
+# terunggah. Di Vercel, nilainya diisi lewat Settings -> Environment Variables.
+.env*
+
+# Dipasang ulang oleh Vercel saat build; rekaman suara ditulis ke /tmp.
+node_modules/
+uploads/
+
+*.log
+.DS_Store
